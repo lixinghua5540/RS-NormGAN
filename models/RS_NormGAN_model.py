@@ -47,7 +47,6 @@ class RSNormGANModel(BaseModel):
         if self.task=="GESD":
             self.subtask=opt.subtask
         # specify the training losses you want to print out. The training/test scripts will call <BaseModel.get_current_losses>
-        #self.loss_names = ['G_AB', 'cycle_A', 'cycle_Av', 'idt_A', 'cycle_B','cycle_Bv', 'idt_B','D_A','D_B','D_Av','D_Bv','SSIM']
         self.loss_names = ['G_AB', 'cycle_A', 'idt_A', 'cycle_B', 'idt_B','D_A','D_B','SSIM']
         # specify the images you want to save/display. The training/test scripts will call <BaseModel.get_current_visuals>
         visual_names_A = ['real_A', 'fake_B', 'rec_A']
@@ -61,7 +60,6 @@ class RSNormGANModel(BaseModel):
         self.visual_names = visual_names_A + visual_names_B  # combine visualizations for A and B
         # specify the models you want to save to the disk. The training/test scripts will call <BaseModel.save_networks> and <BaseModel.load_networks>.
         if self.isTrain:
-            #self.model_names = ['G_A', 'G_B','G_AC', 'G_BC','G_att_A','G_att_B', 'D_A','D_B']#global-local attention module utlizes at the very first time
             #self.model_names = ['G_Av', 'G_Bv','G_A', 'G_B', 'D_A','D_B']
             self.model_names = ['G_A', 'G_B','G_Av', 'G_Bv', 'D_A','D_B', 'D_Av','D_Bv']
         else:  # during test time, only load Gs
@@ -268,13 +266,11 @@ class RSNormGANModel(BaseModel):
         smaski=[]
         for i in range(len(color_codes)):
             cmaski.append(torch.unsqueeze(_extract_mask(content_seg, color_codes[i]), 1).float())
-            #smaski.append(torch.unsqueeze(_extract_mask(style_seg, color_codes[i]), 1).float())
         #b,c,h,w,
         cmaski_onehot=torch.zeros_like(cmaski[0])
         for i in range(len(color_codes)):
             cmaski_onehot+=cmaski[i]
-        #print(cmaski_onehot)
-        return cmaski,cmaski_onehot#,smaski
+        return cmaski,cmaski_onehot
     def load_segvar(self,content_seg,c_code):
         color_codes=c_code
         def _extract_mask(seg, color_str):
@@ -303,15 +299,11 @@ class RSNormGANModel(BaseModel):
         smaskv=[]#calculated by addtion operator of corresponding area in onehot label
         for i in range(len(color_codes)):
             cmaskv.append(torch.unsqueeze(_extract_mask(content_seg, color_codes[i]), 1).float())
-            #smaskv.append(torch.unsqueeze(_extract_mask(style_seg, color_codes[i]), 1).float())
-        #b,c,h,w,
+        #b,c,h,w
         cmaskv_onehot=torch.zeros_like(cmaskv[0])
         for i in range(len(color_codes)):
-            #print("part",cmaskv[i])
             cmaskv_onehot+=cmaskv[i]
-        #print(cmaskv_onehot)
-        #print(cmaskv_onehot.shape)
-        return cmaskv,cmaskv_onehot#,smaskv
+        return cmaskv,cmaskv_onehot
 
     def Net_Gpart(self,img,mask,netGv,netG):#using mask as the supplement
         #pred=torch.zeros_like(img)
