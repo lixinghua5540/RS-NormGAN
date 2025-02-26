@@ -321,23 +321,6 @@ class RSNormGANModel(BaseModel):
         #RGBpredvar=netGv(torch.cat([img,mask],1))
         RGBfusion=self.Fusion(dst1,RGBpredvar,vmask)
         return RGBfusion
-    
-    def Net_Gpart1(self,img,mask,netGv,netG):#
-        #pred=torch.zeros_like(img)
-        _,invmask=self.load_seginv(mask,self.c_code_inv)#new
-        imaskdilate= torch.nn.functional.max_pool2d(invmask, kernel_size=5, stride=1, padding=2)
-        RGBinv=torch.mul(img,imaskdilate)#new
-        maskinv=torch.mul(mask,imaskdilate)#new
-        #dst1=netGp(torch.cat([img,mask],1))
-        dst1=netG(RGBinv)
-        _,vmask=self.load_segvar(mask,self.c_code_var)
-        vmaskdilate= torch.nn.functional.max_pool2d(vmask, kernel_size=5, stride=1, padding=2)
-        RGBv=torch.mul(img,vmaskdilate)
-        maskv=torch.mul(mask,vmaskdilate)
-        RGBpredvar=netGv(RGBv)
-        #RGBpredvar=netGv(torch.cat([img,mask],1))
-        RGBfusion=self.Fusion(dst1,RGBpredvar,vmask)
-        return RGBfusion
 
     def gram_matrix(self,activations):#this gram matrix is not the enhanced one
         #print("a",activations.device)
@@ -350,7 +333,6 @@ class RSNormGANModel(BaseModel):
         gram_matrix_T=torch.transpose(gram_matrix,2,1)
 
         Gram=torch.empty(batchsize,num_channels,num_channels).to(self.device)
-        #print('g',Gram.device)
         for i in range(batchsize):
             Gramn=torch.matmul(gram_matrix[i],gram_matrix_T[i])
             Gram[i]=Gramn
@@ -376,23 +358,13 @@ class RSNormGANModel(BaseModel):
     def forward(self):
         """Run forward pass; called by both functions <optimize_parameters> and <test>."""
 
-        #print(onehot_maskA.shape)
-        #print(onehot_maskA)
         self.fake_B=self.Net_Gpart(self.real_A,self.mask_A,self.netG_Av,self.netG_A)#double sub-generators in a generative process
-        self.rec_A=self.Net_Gpart(self.fake_B,self.mask_A,self.netG_Bv,self.netG_B)#
-        self.fake_A=self.Net_Gpart(self.real_B,self.mask_B,self.netG_Bv,self.netG_B)#
-        self.rec_B=self.Net_Gpart(self.fake_A,self.mask_B,self.netG_Av,self.netG_A)#
+        self.rec_A=self.Net_Gpart(self.fake_B,self.mask_A,self.netG_Bv,self.netG_B)
+        self.fake_A=self.Net_Gpart(self.real_B,self.mask_B,self.netG_Bv,self.netG_B)
+        self.rec_B=self.Net_Gpart(self.fake_A,self.mask_B,self.netG_Av,self.netG_A)
 
     def forward_att(self):
         """Run forward pass; called by both functions <optimize_parameters> and <test>."""
-        # self.fake_B=(1.2*self.netG_GAM_A(self.real_A))*self.Net_Gpart(self.real_A,self.mask_A,self.netG_Av,self.netG_A)+(1-1.2*self.netG_GAM_A(self.real_A))*self.real_A
-        # self.rec_A=(1.2*self.netG_GAM_B(self.fake_B))*self.Net_Gpart(self.fake_B,self.mask_A,self.netG_Bv,self.netG_B)+(1-1.2*self.netG_GAM_B(self.fake_B))*self.fake_B
-        # self.fake_A=(1.2*self.netG_GAM_B(self.real_B))*self.Net_Gpart(self.real_B,self.mask_B,self.netG_Bv,self.netG_B)+(1-1.2*self.netG_GAM_B(self.real_B))*self.real_B
-        # self.rec_B=(1.2*self.netG_GAM_A(self.fake_A))*self.Net_Gpart(self.fake_A,self.mask_B,self.netG_Av,self.netG_A)+(1-1.2*self.netG_GAM_A(self.fake_A))*self.fake_A
-        # self.fake_B=(0.6*self.netG_GAM_A(self.real_A)+0.6)*self.Net_Gpart(self.real_A,self.mask_A,self.netG_Av,self.netG_A)+(0.4-0.6*self.netG_GAM_A(self.real_A))*self.real_A#make the output value to 0.7~1.3
-        # self.rec_A=(0.6*self.netG_GAM_B(self.fake_B)+0.6)*self.Net_Gpart(self.fake_B,self.mask_A,self.netG_Bv,self.netG_B)+(0.4-0.6*self.netG_GAM_B(self.fake_B))*self.fake_B
-        # self.fake_A=(0.6*self.netG_GAM_B(self.real_B)+0.6)*self.Net_Gpart(self.real_B,self.mask_B,self.netG_Bv,self.netG_B)+(0.4-0.6*self.netG_GAM_B(self.real_B))*self.real_B
-        # self.rec_B=(0.6*self.netG_GAM_A(self.fake_A)+0.6)*self.Net_Gpart(self.fake_A,self.mask_B,self.netG_Av,self.netG_A)+(0.4-0.6*self.netG_GAM_A(self.fake_A))*self.fake_A
         self.fake_B=(self.AttWeight*self.netG_GAM_A(self.real_A)+self.AttBias)*self.Net_Gpart(self.real_A,self.mask_A,self.netG_Av,self.netG_A)+(1-self.AttBias-self.AttWeight*self.netG_GAM_A(self.real_A))*self.real_A
         self.rec_A=(self.AttWeight*self.netG_GAM_B(self.fake_B)+self.AttBias)*self.Net_Gpart(self.fake_B,self.mask_A,self.netG_Bv,self.netG_B)+(1-self.AttBias-self.AttWeight*self.netG_GAM_B(self.fake_B))*self.fake_B
         self.fake_A=(self.AttWeight*self.netG_GAM_B(self.real_B)+self.AttBias)*self.Net_Gpart(self.real_B,self.mask_B,self.netG_Bv,self.netG_B)+(1-self.AttBias-self.AttWeight*self.netG_GAM_B(self.real_B))*self.real_B
@@ -402,7 +374,6 @@ class RSNormGANModel(BaseModel):
         cmask,smask,cweight,sweight,_,_=self.load_seg(fmask,rmask,self.c_code)
         StyleLoss=0.0
         for i in range(0,5):#five different layers from feature maps
-            #print('i',i)
             batch=styleb[i].shape[0]
             height=styleb[i].shape[2]
             width=styleb[i].shape[3]
@@ -410,9 +381,7 @@ class RSNormGANModel(BaseModel):
             cweight=F.interpolate(cweight,scale_factor=height/cweight.shape[2],mode="bilinear",align_corners=False)
             styleb[i]=torch.mul(styleb[i],sweight)
             stylev[i]=torch.mul(stylev[i],cweight)
-            for j in range(self.v_class,len(cmask)):#??5 for SHCD
-                # print('j',j)
-                # print(cmask[j].shape)
+            for j in range(self.v_class,len(cmask)):
                 cmask[j]=F.interpolate(cmask[j],scale_factor=height/cmask[j].shape[2],mode="bilinear",align_corners=False)
                 smask[j]=F.interpolate(smask[j],scale_factor=height/smask[j].shape[2],mode="bilinear",align_corners=False)
                 styleB=torch.mul(styleb[i],smask[j])
