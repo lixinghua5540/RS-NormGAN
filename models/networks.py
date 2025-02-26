@@ -157,8 +157,6 @@ def define_G(input_nc, output_nc, ngf, netG, norm='batch', use_dropout=False, in
         net = UnetGenerator(input_nc, output_nc, 8, ngf, norm_layer=norm_layer, use_dropout=use_dropout)
     elif netG == 'ResUnet':
         net = ResUnetGenerator(input_nc, output_nc, 7, ngf, norm_layer=norm_layer, use_dropout=use_dropout,n_blocks=8)
-    elif netG == 'perceptual':
-        net = PGGenerator(input_nc, output_nc,ngf, norm_layer=norm_layer, use_dropout=use_dropout,n_blocks=5)
     else:
         raise NotImplementedError('Generator model name [%s] is not recognized' % netG)
     return init_net(net, init_type, init_gain, gpu_ids)
@@ -380,10 +378,6 @@ class WeightGANLoss(nn.Module):
                 loss = -prediction.mean()
             else:
                 loss = prediction.mean()
-        #print(Weight.shape)
-        #print(Weight)
-        #print(prediction.shape)
-        #print(loss)
 
         return loss
 
@@ -604,7 +598,7 @@ class ResnetGenerator(nn.Module):
                  #nn.Conv2d(256, 256, kernel_size=3, padding=0, bias=use_bias)]
 
         n_downsampling = 2
-        #ngf=256#可更改
+        
         for i in range(n_downsampling):  # add downsampling layers
             mult = 2 ** i
             model += [nn.Conv2d(ngf * mult, ngf * mult * 2, kernel_size=3, stride=2, padding=1, bias=use_bias),
@@ -627,68 +621,6 @@ class ResnetGenerator(nn.Module):
             #         nn.Conv2d(ngf*mult,int(ngf * mult / 2),kernel_size=3,padding=1),
                       norm_layer(int(ngf * mult / 2)),
                       nn.LeakyReLU(0.1,True)]
-        model += [nn.ReflectionPad2d(3)]
-        model += [nn.Conv2d(ngf, output_nc, kernel_size=7, padding=0)]
-        model += [nn.Tanh()]#这b双曲正切干啥啊
-
-        self.model = nn.Sequential(*model)
-
-    def forward(self, input):
-        """Standard forward"""
-        return self.model(input)
-
-class PGGenerator(nn.Module):
-    """Resnet-based generator that consists of Resnet blocks between a few downsampling/upsampling operations.
-
-    We adapt Torch code and idea from Justin Johnson's neural style transfer project(https://github.com/jcjohnson/fast-neural-style)
-    """
-
-    def __init__(self, input_nc, output_nc, ngf=64, norm_layer=nn.BatchNorm2d, use_dropout=False, n_blocks=6, padding_type='reflect'):
-        """Construct a Resnet-based generator
-
-        Parameters:
-            input_nc (int)      -- the number of channels in input images
-            output_nc (int)     -- the number of channels in output images
-            ngf (int)           -- the number of filters in the last conv layer
-            norm_layer          -- normalization layer
-            use_dropout (bool)  -- if use dropout layers
-            n_blocks (int)      -- the number of ResNet blocks
-            padding_type (str)  -- the name of padding layer in conv layers: reflect | replicate | zero
-        """
-        assert(n_blocks >= 0)
-        super(PGGenerator, self).__init__()
-        if type(norm_layer) == functools.partial:
-            use_bias = norm_layer.func == nn.InstanceNorm2d
-        else:
-            use_bias = norm_layer == nn.InstanceNorm2d
-
-        model = [nn.ReflectionPad2d(40),
-                 nn.Conv2d(3, 32, kernel_size=9, stride=1,padding=4, bias=use_bias),#use_bias 作用是什么
-                 norm_layer(ngf),
-                 nn.ReLU(True)]
-
-        n_downsampling = 3
-        for i in range(n_downsampling):  # add downsampling layers
-            mult = 2 ** i
-            model += [nn.Conv2d(ngf * mult, ngf * mult * 2, kernel_size=3, stride=2, padding=1, bias=use_bias),
-                      norm_layer(ngf * mult * 2),
-                      nn.ReLU(True)]
-
-        mult = 2 ** n_downsampling
-        for i in range(n_blocks):       # add ResNet blocks
-
-            model += [ResnetBlock(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, use_dropout=use_dropout, use_bias=use_bias)]
-
-        for i in range(n_downsampling):  # add upsampling layers
-            mult = 2 ** (n_downsampling - i)
-            model += [nn.ConvTranspose2d(ngf * mult, int(ngf * mult / 2),
-                                         kernel_size=3, stride=2,
-                                         padding=1, output_padding=1,
-                                         bias=use_bias),
-            #model+= [nn.UpsamplingBilinear2d(scale_factor=2),
-            #         nn.Conv2d(ngf*mult,int(ngf * mult / 2),kernel_size=3,padding=1),
-                      norm_layer(int(ngf * mult / 2)),
-                      nn.ReLU(True)]
         model += [nn.ReflectionPad2d(3)]
         model += [nn.Conv2d(ngf, output_nc, kernel_size=7, padding=0)]
         model += [nn.Tanh()]
