@@ -240,11 +240,7 @@ class TestdoubleGModel(BaseModel):
         """Run forward pass."""
         #self.fake = self.Net_Gpart(self.real,self.mask,self.netGv,self.netG)  # G(real)
         self.fake=(self.AttWeight*self.netG_GAM(self.real)+self.AttBias)*self.Net_Gpart(self.real,self.mask,self.netGv,self.netG)+(1-self.AttBias-self.AttWeight*self.netG_GAM(self.real))*self.real
-        #self.fake = self.netG(torch.cat([self.real,self.mask],1))
-        #self.fake = self.netG_att(self.real)*self.Net_Gpart(self.real,self.mask,self.netG,self.netGC) + (1-self.netG_att(self.real))*self.real
-        #self.fake = (1-self.netG_att(self.real)/2)*self.Net_Gpart(self.real,self.mask,self.netG,self.netGC) + (self.netG_att(self.real)/2)*self.real
-        #self.fake = self.netG_att(torch.cat([self.real,self.mask],1))*self.Net_Gpart(self.real,self.mask,self.netG,self.netGC) + (1-self.netG_att(torch.cat([self.real,self.mask],1)))*self.real
-
+        
     def optimize_parameters(self):
         """No optimization for test model."""
         pass
