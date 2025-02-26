@@ -37,15 +37,10 @@ if __name__ == '__main__':
         epoch_iter = 0                  # the number of training iterations in current epoch, reset to 0 every epoch
         visualizer.reset()              # reset the visualizer: make sure it saves the results to HTML at least once every epoch
         model.update_learning_rate()    # update learning rates in the beginning of every epoch.
-        #print("G_A",model.netG_A.state_dict()["module.model.model.2.model.3.model.3.model.1.weight"])
-        #print("G_att_A",model.netG_att_A.state_dict()["module.upsample1.0.conv2d.depthwiseconv.conv.weight"])
+
         if model.epoch==opt.n_epochs + opt.n_epochs_decay+1:
-            #model.optimizers[0].param_groups[0]['lr']=0.0003#可能有学习率没有更新完全
+
             model.set_new_optimnet()
-        #if model.epoch>=opt.n_epochs + opt.n_epochs_decay+1:
-            #print("G_att_A",model.netG_att_A.state_dict()["module.upsample1.0.conv2d.depthwiseconv.conv.weight"])
-        print(model.optimizers)
-        print("learning_rate",model.optimizers[0].param_groups[0]['lr'])
         for i, data in enumerate(dataset):  # inner loop within one epoch
             iter_start_time = time.time()  # timer for computation per iteration
             if total_iters % opt.print_freq == 0:
