@@ -609,18 +609,12 @@ class RSNormGANModel(BaseModel):
 
         if lambda_idt > 0:
             # G_A should be identity if real_B is fed: ||G_A(B) - B||
-            #self.idt_A=self.netG_GAM_A(self.real_B)*self.Net_Gpart(self.real_B,self.mask_B,self.netG_A,self.netG_AC)+(1-self.netG_GAM_A(self.real_B))*self.real_B
-            #self.idt_A=(1.2*self.netG_GAM_A(self.real_B))*self.Net_Gpart(self.real_B,self.mask_B,self.netG_Av,self.netG_A)+(1-1.2*self.netG_GAM_A(self.real_B))*self.real_B
-            #self.idt_A=(0.6*self.netG_GAM_A(self.real_B)+0.6)*self.Net_Gpart(self.real_B,self.mask_B,self.netG_Av,self.netG_A)+(0.4-0.6*self.netG_GAM_A(self.real_B))*self.real_B#??
             self.idt_A=(self.AttWeight*self.netG_GAM_A(self.real_B)+self.AttBias)*self.Net_Gpart(self.real_B,self.mask_B,self.netG_Av,self.netG_A)+(1-self.AttBias-self.AttWeight*self.netG_GAM_A(self.real_B))*self.real_B
             #self.idt_A = self.Net_Gpart(self.real_B,self.mask_B,self.netG_A,self.netG_AC)
             invidtA=torch.mul(self.idt_A,b1hotmask)
             #self.loss_idt_A = self.criterionIdt(self.idt_A, self.real_B) * lambda_B * lambda_idt
             self.loss_idt_A = self.criterionIdt(invidtA, invrealB) * lambda_B * lambda_idt
             # G_B should be identity if real_A is fed: ||G_B(A) - A||
-            #self.idt_B=self.netG_GAM_B(self.real_A)*self.Net_Gpart(self.real_A,self.mask_A,self.netG_B,self.netG_BC)+(1-self.netG_GAM_B(self.real_A))*self.real_A
-            #self.idt_B=(1.2*self.netG_GAM_B(self.real_A))*self.Net_Gpart(self.real_A,self.mask_A,self.netG_Bv,self.netG_B)+(1-1.2*self.netG_GAM_B(self.real_A))*self.real_A
-            #self.idt_B=(0.6*self.netG_GAM_B(self.real_A)+0.6)*self.Net_Gpart(self.real_A,self.mask_A,self.netG_Bv,self.netG_B)+(0.4-0.6*self.netG_GAM_B(self.real_A))*self.real_A#??
             self.idt_B=(self.AttWeight*self.netG_GAM_B(self.real_A)+self.AttBias)*self.Net_Gpart(self.real_A,self.mask_A,self.netG_Bv,self.netG_B)+(1-self.AttBias-self.AttWeight*self.netG_GAM_B(self.real_A))*self.real_A
             #self.idt_B = self.Net_Gpart(self.real_A,self.mask_A,self.netG_B,self.netG_BC)
             invidtB=torch.mul(self.idt_B,a1hotmask)
@@ -663,14 +657,9 @@ class RSNormGANModel(BaseModel):
         StyleBv.append(stylevB5)
         StyleLossA=self.stylelosscal(StyleAb,StyleAv,self.mask_B,self.mask_A)
         StyleLossB=self.stylelosscal(StyleBb,StyleBv,self.mask_A,self.mask_B)
-        #div=1/(contentVA.shape[1]*contentVA.shape[2]*contentVA.shape[3])
-        #ContentLossA=torch.mean(torch.mul(contentVA-contentBA,contentVA-contentBA))+torch.mean(torch.mul(contentVA1-contentBA,contentVA1-contentBA))#mean就不需要div了吧感觉
-        #ContentLossB=torch.mean(torch.mul(contentVB-contentBB,contentVB-contentBB))+torch.mean(torch.mul(contentVB1-contentBB,contentVB1-contentBB))
         ContentLossA=torch.mean(torch.mul(contentVA-contentBA,contentVA-contentBA))
         ContentLossB=torch.mean(torch.mul(contentVB-contentBB,contentVB-contentBB))
         self.loss_G_AB=(StyleLossA+StyleLossB+5*ContentLossA+5*ContentLossB)*0.01
-        #self.loss_G_AB=(StyleLossA+StyleLossB)*0.01
-        #self.loss_G_AB=(5*ContentLossA+5*ContentLossB)*0.01
         # GAN loss D_A(G_A(A)) D_B(G_B(B))
         _amask=self.Dmaskloader(a1hotmask)
         _bmask=self.Dmaskloader(b1hotmask)
@@ -699,18 +688,17 @@ class RSNormGANModel(BaseModel):
             self.basegan2=0
         #self.loss_SSIM=2-self.criterionSSIM(self.real_A,self.fake_B)-self.criterionSSIM(self.real_B,self.fake_A)
         #self.loss_SSIM=2-self.criterionSSIM(self.real_A,self.mid_B)-self.criterionSSIM(self.real_B,self.mid_A)+2-self.criterionSSIM(self.real_A,self.fake_B)-self.criterionSSIM(self.real_B,self.fake_A)
-        self.loss_SSIM=2-self.criterionSSIM(self.real_A,self.fake_B)-self.criterionSSIM(self.real_B,self.fake_A)
+        self.loss_SSIM = 2-self.criterionSSIM(self.real_A,self.fake_B)-self.criterionSSIM(self.real_B,self.fake_A)
         self.loss_G = (1-self.cW)*self.loss_G_AB +self.basegan1+self.basegan2+self.cW*(self.baseganv1+self.baseganv2)+self.loss_SSIM
         #self.loss_G = self.loss_G_AB +self.basegan1+self.basegan2+self.loss_SSIM
         #self.loss_G = self.loss_G_AB +self.basegan1+self.basegan2+self.loss_SSIM+self.loss_cycle_A + self.loss_cycle_B + self.loss_idt_A + self.loss_idt_B
-        #self.loss_G = self.loss_G_AB +self.loss_cycle_A + self.loss_cycle_B + self.loss_idt_A + self.loss_idt_B+self.basegan1+self.basegan2+2*self.loss_SSIM
         self.loss_G.backward()
 
     def set_new_optimnet(self):
         """change the optimized networks to realize two-step strategy"""
         print("optlr",self.opt.lr)
         self.optimizer_G_att = torch.optim.Adam(itertools.chain(self.netG_GAM_A.parameters(),self.netG_GAM_B.parameters()),lr=self.opt.lr,betas=(self.opt.beta1, 0.999))#set different learning rates for different networks
-        self.model_names = ['G_GAM_A', 'G_GAM_B', 'D_A','D_B', 'D_Av','D_Bv']#???
+        self.model_names = ['G_GAM_A', 'G_GAM_B', 'D_A','D_B', 'D_Av','D_Bv']
         #self.model_names = ['G_GAM_A', 'G_GAM_B', 'D_A','D_B']
         self.optimizers.append(self.optimizer_G_att)
         def lambda_rule_att(epoch):
@@ -725,7 +713,7 @@ class RSNormGANModel(BaseModel):
         # G_A and G_B
         # Ds require no gradients when optimizing Gs
         self.set_requires_grad([self.netD_A,self.netD_B,self.netD_Av,self.netD_Bv], False)
-        #self.set_requires_grad([self.netD_A,self.netD_B], False)#??
+        #self.set_requires_grad([self.netD_A,self.netD_B], False)
         self.optimizer_G.zero_grad()  # set G_A and G_B's gradients to zero
         self.backward_G()             # calculate gradients for G_A and G_B 
         self.optimizer_G.step()       # update G_A and G_B's weights
