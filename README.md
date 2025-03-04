@@ -4,3 +4,6 @@ Paper: J. Miao, S. Li, X. Bai, W. Gan, J. Wu and X. Li, "RS-NormGAN: Enhancing c
 We proposed a pseudo invariant feature (PIF) - inspired weakly supervised generative adversarial network (GAN) for remote sensing images radiometric normalization, which is beneficial for applications.
 
 ![overall](https://github.com/user-attachments/assets/e90d37b3-ada9-40ba-96fa-919e57d2ed02)
+
+# Contact
+jianhao_miao@whu.edu.cn
