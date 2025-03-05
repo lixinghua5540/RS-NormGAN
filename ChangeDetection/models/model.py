@@ -314,7 +314,7 @@ class BaseNet(nn.Module):
         mask_p2 = F.interpolate(mask_p2, scale_factor=(4, 4), mode='bilinear')
         #print(mask_p2.shape)
         #mask_p2 = torch.sigmoid(mask_p2)
-        #mask_p2 = torch.softmax(mask_p2,dim=1)#if using the CrossEntropyLoss we can use softmax in the final layer, but what if we dont use this function?
+        #mask_p2 = torch.softmax(mask_p2,dim=1)
         mask_p3 = F.interpolate(mask_p3, scale_factor=(8, 8), mode='bilinear')
         #print(mask_p3.shape)
         #mask_p3 = torch.sigmoid(mask_p3)
