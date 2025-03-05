@@ -13,10 +13,13 @@ cudatoolkit 11.3.1<br>
 PyTorch 1.10.2 GPU version + torchvision 0.11.3 + torchaudio 0.10.2 <br>
 numpy 1.21.5 <br>
 pillow 9.0.1 <br>
-
-# Data Acquisition
+# Normalization
+## Data Acquisition
 https://pan.baidu.com/s/1P24MCokRd9Icbz8drBFARA?pwd=mtRS <br>
 Put the folder "datasets" inside the folder "Normalization".<br>
+## Train
+
+## Test
 
 # Contact
 jianhao_miao@whu.edu.cn
