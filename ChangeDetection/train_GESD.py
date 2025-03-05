@@ -169,17 +169,6 @@ def train(args, train_loader, model, optimizer, epoch, max_batches, cur_iter=0, 
                 res_time),
                   end='')
 
-        # if np.mod(iter, 200) == 1:
-        #     vis_input = utils.make_numpy_grid(utils.de_norm(pre_img_var[0:8]))
-        #     vis_input2 = utils.make_numpy_grid(utils.de_norm(post_img_var[0:8]))
-        #     vis_pred = utils.make_numpy_grid(pred[0:8])
-        #     vis_gt = utils.make_numpy_grid(target_var[0:8])
-        #     vis = np.concatenate([vis_input, vis_input2, vis_pred, vis_gt], axis=0)
-        #     vis = np.clip(vis, a_min=0.0, a_max=1.0)
-        #     file_name = os.path.join(
-        #         args.vis_dir, 'train_' + str(epoch) + '_' + str(iter) + '.jpg')
-        #     plt.imsave(file_name, vis)
-
     average_epoch_loss_train = sum(epoch_loss) / len(epoch_loss)
     scores = salEvalVal.get_scores()
 
@@ -228,8 +217,6 @@ def trainValidateSegmentation(args):
         args.file_root = './Datasets/CDD'
     elif args.file_root == 'quick_start':
         args.file_root = './samples'
-    elif args.file_root == 'SentinelCD':
-        args.file_root = './Datasets/SentinelCD'
     elif args.file_root == 'S2W':
         args.file_root = './Datasets/S2W'
     elif args.file_root == 'S2W2':
@@ -258,23 +245,6 @@ def trainValidateSegmentation(args):
     # mean = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
     # std = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
 
-    # compose the data with transforms
-    # trainDataset_main = myTransforms.Compose([
-    #     myTransforms.Normalize(mean=mean, std=std),
-    #     #myTransforms.Scale(args.inWidth, args.inHeight),
-    #     #myTransforms.RandomCropResize(int(7. / 224. * args.inWidth)),
-    #     myTransforms.RandCrop(256,256),
-    #     myTransforms.RandomFlip(),
-    #     myTransforms.RandomExchange(),
-    #     # myTransforms.GaussianNoise(),
-    #     myTransforms.ToTensor()
-    # ])
-
-    # valDataset = myTransforms.Compose([
-    #     myTransforms.Normalize(mean=mean, std=std),
-    #     myTransforms.Scale(args.inWidth, args.inHeight),
-    #     myTransforms.ToTensor()
-    # ])
     trainDataset_main = myTransforms.Compose([
         myTransforms.Normalize(mean=mean, std=std),
         myTransforms.RandCrop(256,256),
