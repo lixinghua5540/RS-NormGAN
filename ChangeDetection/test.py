@@ -57,7 +57,7 @@ def BCE(inputs, targets):
 
 
 def MSEDiceLoss(inputs, targets):
-    #mse = F.binary_cross_entropy(inputs, targets)#yong softmax_cross_entropy是不是更好，logsoftmax和softmax有什么不一样
+    #mse = F.binary_cross_entropy(inputs, targets)
     mse = F.cross_entropy(inputs, targets.squeeze().to(torch.long))#the target should be batches of number and has one less dimension than inputs
     #inter = (inputs * targets).sum()#dice can not calculate in this way because we use several classes
     eps = 1e-5
@@ -76,17 +76,18 @@ def val(args, val_loader, model, epoch):
 
     total_batches = len(val_loader)
     print(len(val_loader))
-    #h=1000
+    #h=1000 #config for GESD
     #w=1160
-    h=1792
-    w=1536
     #w=740
     #w=950
-    hp=1792
-    wp=1536
     #wp=768
     #wp=1024
-    predwhole=torch.zeros((4,hp,wp)).cuda().to(dtype=torch.float)#4层分别储存四个分块的对应位置并取众数
+    h=1792 #config for SHCD
+    w=1536
+    hp=1792
+    wp=1536
+
+    predwhole=torch.zeros((4,hp,wp)).cuda().to(dtype=torch.float)
     pred_mode=torch.zeros((hp,wp)).cuda().to(dtype=torch.uint8)
     pred_color=torch.zeros((3,h,w)).cuda().to(dtype=torch.uint8)
     patchsize=256
@@ -164,14 +165,13 @@ def val(args, val_loader, model, epoch):
         #if iter % 5 == 0:
         #    print('\r[%d/%d] F1: %3f loss: %.3f time: %.3f' % (iter, total_batches, f1, loss.data.item(), time_taken),
         #          end='')
-    pred_mode=predwhole[0,:,:]#先赋边角值
+    pred_mode=predwhole[0,:,:]
     no_edge=predwhole[:,int(patchsize/2):hp-int(patchsize/2),int(patchsize/2):wp-int(patchsize/2)]
     no_edge_mode,_=torch.mode(no_edge,dim=0)
-    #print(no_edge_mode.shape)
-    #print(pred_mode.shape)
+
     pred_mode[int(patchsize/2):hp-int(patchsize/2),int(patchsize/2):wp-int(patchsize/2)]=no_edge_mode
     pred_mode_part=pred_mode[0:h,0:w]
-    for i in range(len(color_codes_BGR)):#转可视化
+    for i in range(len(color_codes_BGR)):
         i_ind=(pred_mode_part==i)
         pred_color[0][i_ind]=color_codes_BGR[i][0]
         pred_color[1][i_ind]=color_codes_BGR[i][1]
