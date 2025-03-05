@@ -26,12 +26,13 @@ The configs can be modified in the " options/test_options.py" <br>
 
 # Change Detection
 ## DataSet
-Put the folder "datasets" inside the folder "Normalization".<br>
+
 ## Train
 for Sentinel Hefei Change Detection dataset
 ```python train_SHCD.py```<br>
 for Google Earth Seasonal Difference dataset
 ```python train_GESD.py```<br>
 ## Test
+Modify the loss calculation and CD Network by changing test.py
 # Contact
 jianhao_miao@whu.edu.cn
