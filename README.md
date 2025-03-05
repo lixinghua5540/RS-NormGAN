@@ -21,7 +21,7 @@ Put the folder "datasets" inside the folder "Normalization".<br>
 ```python train.py```<br>
 The configs can be modified in the "options/base_options.py and options/train_options.py" <br>
 ## Test
-```python train.py --dataroot Your_Path_to_data --model testdoubleG --no_dropout --use_wandb --model_suffix _A --load_size 256 --name YourExperimentname --ngf 64 --netG ResUnet```<br>
+```python train.py --dataroot Your_path_to_data --model testdoubleG --no_dropout --use_wandb --model_suffix _A --load_size 256 --name Your_experiment_name --ngf 64 --netG ResUnet```<br>
 The configs can be modified in the " options/test_options.py" <br>
 # Contact
 jianhao_miao@whu.edu.cn
