@@ -23,5 +23,15 @@ The configs can be modified in the "options/base_options.py and options/train_op
 ## Test
 ```python train.py --dataroot Your_path_to_data --model testdoubleG --no_dropout --use_wandb --model_suffix _A --load_size 256 --name Your_experiment_name --ngf 64 --netG ResUnet```<br>
 The configs can be modified in the " options/test_options.py" <br>
+
+# Change Detection
+## DataSet
+Put the folder "datasets" inside the folder "Normalization".<br>
+## Train
+for Sentinel Hefei Change Detection dataset
+```python train_SHCD.py```<br>
+for Google Earth Seasonal Difference dataset
+```python train_GESD.py```<br>
+## Test
 # Contact
 jianhao_miao@whu.edu.cn
