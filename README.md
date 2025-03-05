@@ -7,3 +7,6 @@ We proposed a pseudo invariant feature (PIF) - inspired weakly supervised genera
 
 # Contact
 jianhao_miao@whu.edu.cn
+
+# Data Acquisition
+https://pan.baidu.com/s/1P24MCokRd9Icbz8drBFARA?pwd=mtRS 
