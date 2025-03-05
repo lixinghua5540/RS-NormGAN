@@ -18,7 +18,7 @@ import numpy as np
 from argparse import ArgumentParser
 from Evaluate_operation import excel_confu_matrix, metrics
 import cv2
-from models.model import BaseNet
+from models.A2Net import A2Net
 from models.DMINet import DMINet
 from models.FCEF import FC_siam_diff, FC_siam_diff2
 from models.SEIFNet import SEIFNet
@@ -202,7 +202,7 @@ def ValidateSegmentation(args):
     torch.manual_seed(SEED)
     torch.cuda.manual_seed(SEED)
 
-    #model = BaseNet(3, 6)
+    #model = A2Net(3, 6)
     #model = DMINet(6)
     model = FC_siam_diff(3,6)
     #model = SEIFNet(args,input_nc=3, output_nc=6)
