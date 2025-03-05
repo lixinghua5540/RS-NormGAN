@@ -21,7 +21,7 @@ Put the folder "datasets" inside the folder "Normalization".<br>
 ```python train.py```
 
 ## Test
-```python train.py --dataroot datasets/sentinel16bit/test/testA --model testdoubleG --no_dropout --use_wandb --model_suffix _A --load_size 256 --name SentinelCD2 --ngf 64 --netG ResUnet```
+```python train.py --dataroot Your_Path_to_data --model testdoubleG --no_dropout --use_wandb --model_suffix _A --load_size 256 --name YourExperimentname --ngf 64 --netG ResUnet```
 
 # Contact
 jianhao_miao@whu.edu.cn
