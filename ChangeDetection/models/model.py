@@ -287,9 +287,9 @@ class Decoder(nn.Module):
         return p2, p3, p4, p5, mask_p2, mask_p3, mask_p4, mask_p5
 
 
-class BaseNet(nn.Module):
+class A2Net(nn.Module):
     def __init__(self, input_nc=3, output_nc=1):
-        super(BaseNet, self).__init__()
+        super(A2Net, self).__init__()
         self.backbone = MobileNetV2.mobilenet_v2(pretrained=True)
         channles = [16, 24, 32, 96, 320]
         self.en_d = 32
