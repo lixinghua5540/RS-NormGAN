@@ -64,11 +64,10 @@ class ConfuseMatrixMeter(AverageMeter):
         return current_score
 
     def get_scores(self):
-        scores_dict = cm2score(self.sum)#这样是不对的
+        scores_dict = cm2score(self.sum)
         return scores_dict
 
     def get_confuse_matrix(self,num_classes, label_gts, label_preds):
-        """计算一组预测的混淆矩阵"""
     
         def __fast_hist(label_gt, label_pred):
             """
@@ -92,39 +91,13 @@ def harmonic_mean(xs):
     return harmonic_mean
 
 
-def cm2F1(confusion_matrix):#纯粹的二分类分数
+def cm2F1(confusion_matrix):
     hist = confusion_matrix
-    # tp = hist[1, 1]
-    # fn = hist[1, 0]
-    # fp = hist[0, 1]
-    # tn = hist[0, 0]
-    # # recall
-    # recall = tp / (tp + fn + np.finfo(np.float32).eps)
-    # # precision
-    # precision = tp / (tp + fp + np.finfo(np.float32).eps)
-    # # F1 score
-    # f1 = 2 * recall * precision / (recall + precision + np.finfo(np.float32).eps)
-    precision=hist.diagonal()/(np.sum(hist,axis=1)+np.finfo(np.float32).eps)#分母不为零？能否保证
+    
+    precision=hist.diagonal()/(np.sum(hist,axis=1)+np.finfo(np.float32).eps)
     recall=hist.diagonal()/(np.sum(hist,axis=0)+np.finfo(np.float32).eps)
-    f1=np.mean(2*np.multiply(precision,recall)/(precision+recall+np.finfo(np.float32).eps))#怎么能用SUM呢
-    #print(precision)
-    #print(recall)
-    #print(f1)
+    f1=np.mean(2*np.multiply(precision,recall)/(precision+recall+np.finfo(np.float32).eps))
     return f1
-
-# def cm2F1(confusion_matrix):#纯粹的二分类分数#calculate the avg score of every class
-#     hist = confusion_matrix
-#     tp = hist[1, 1]
-#     fn = hist[1, 0]
-#     fp = hist[0, 1]
-#     tn = hist[0, 0]
-#     # recall
-#     recall = tp / (tp + fn + np.finfo(np.float32).eps)
-#     # precision
-#     precision = tp / (tp + fp + np.finfo(np.float32).eps)
-#     # F1 score
-#     f1 = 2 * recall * precision / (recall + precision + np.finfo(np.float32).eps)
-#     return f1
 
 def cm2score(confusion_matrix):
     # hist = confusion_matrix
@@ -158,25 +131,22 @@ def cm2score(confusion_matrix):
     # # F1 score
     # f1 = 2 * recall * precision / (recall + precision + np.finfo(np.float32).eps)
     hist = confusion_matrix
-    precision=hist.diagonal()/(np.sum(hist,axis=1)+np.finfo(np.float32).eps)#分母不为零？能否保证
+    precision=hist.diagonal()/(np.sum(hist,axis=1)+np.finfo(np.float32).eps)
     recall=hist.diagonal()/(np.sum(hist,axis=0)+np.finfo(np.float32).eps)
     f1=np.mean(2*np.multiply(precision,recall)/(precision+recall+np.finfo(np.float32).eps))
-    #print("h1",np.sum(hist,axis=1))
-    #print("h0",np.sum(hist,axis=0))
-    #print("hist",hist.diagonal())
+
     iou=hist.diagonal()/(np.sum(hist,axis=1)+np.sum(hist,axis=0)-hist.diagonal()+np.finfo(np.float32).eps)
     oa=np.sum(hist.diagonal())/np.sum(hist)
-    col_sum=np.sum(hist, axis=1)  # 按行求和
-    raw_sum=np.sum(hist, axis=0)  # 每一列的数量
+    col_sum=np.sum(hist, axis=1)
+    raw_sum=np.sum(hist, axis=0)
     pe_fz = 0
     for i in range(6):
         pe_fz+=col_sum[i] * raw_sum[i]
     pe=pe_fz/(np.sum(hist)*np.sum(hist))
-    kappa = (oa-pe) / (1+1e-15- pe)    # Kappa系数计算
+    kappa = (oa-pe) / (1+1e-15- pe)
     Recall=np.mean(recall)
     Precision=np.mean(precision)
     IoU=np.mean(iou)
-    #print(precision)
     #score_dict = {'Kappa': kappa, 'IoU': iou, 'F1': f1, 'OA': oa, 'recall': recall, 'precision': precision, 'Pre': pre}
     score_dict = {'Kappa': kappa, 'F1': f1, 'OA': oa, 'recall': Recall, 'precision': Precision,'IoU': IoU}
     return score_dict
