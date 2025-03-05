@@ -31,6 +31,7 @@ The configs can be modified in the " options/test_options.py" <br>
   - [Experiment]
     - [train]
       - [A]
+        - [Normalization]
       - [B]
       - [label]
     - [test]
