@@ -26,7 +26,16 @@ The configs can be modified in the " options/test_options.py" <br>
 
 # Change Detection
 ## DataSet
-
+--Datasets
+  |
+  --ExperimentName
+    |
+    --train
+      |
+      
+    --test
+      |
+    --val
 ## Train
 for Sentinel Hefei Change Detection dataset
 ```python train_SHCD.py```<br>
