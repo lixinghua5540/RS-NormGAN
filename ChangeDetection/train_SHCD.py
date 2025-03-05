@@ -1,7 +1,5 @@
 import sys
 
-from models.model import BaseNet
-
 sys.path.insert(0, '.')
 
 import torch
@@ -19,6 +17,8 @@ import matplotlib.pyplot as plt
 import os, time
 import numpy as np
 from argparse import ArgumentParser
+
+from models.A2Net import A2Net
 from models.DMINet import DMINet
 from models.FCEF import FC_siam_diff
 from models.SEIFNet import SEIFNet
