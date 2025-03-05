@@ -41,15 +41,13 @@ def BCE(inputs, targets):
     bce = F.binary_cross_entropy(inputs, targets)
     return bce
 
-def MSEDiceLoss(inputs, targets):#把valbatch改成2也行，重写squeeze也行
-    #mse = F.binary_cross_entropy(inputs, targets)#yong softmax_cross_entropy是不是更好，logsoftmax和softmax有什么不一样
-    #print("input",inputs.squeeze(dim=1).shape)
-    #print("tar",targets.squeeze(dim=1).shape)
+def MSEDiceLoss(inputs, targets):
+    #mse = F.binary_cross_entropy(inputs, targets)
+
     mse = F.cross_entropy(inputs, targets.squeeze().to(torch.long))#the target should be batches of number and has one less dimension than inputs
     #inter = (inputs * targets).sum()#dice can not calculate in this way because we use several classes
     eps = 1e-5
     #dice = (2 * inter + eps) / (inputs.sum() + targets.sum() + eps)
-    # print(bce.item(), inter.item(), inputs.sum().item(), dice.item())
     #return mse + 1 - dice
     return mse
 
@@ -60,7 +58,7 @@ def MSE(inputs, targets):
 def val(args, val_loader, model, epoch):
     model.eval()
 
-    salEvalVal = ConfuseMatrixMeter(n_class=6)#不要用这些，用原来的体系
+    salEvalVal = ConfuseMatrixMeter(n_class=6)
 
     epoch_loss = []
 
@@ -81,23 +79,18 @@ def val(args, val_loader, model, epoch):
 
         pre_img_var = torch.autograd.Variable(pre_img).float()
         post_img_var = torch.autograd.Variable(post_img).float()
-        target_var = torch.autograd.Variable(target).float()#so why should we use the var data
+        target_var = torch.autograd.Variable(target).float()
 
         # run the mdoel
         #output, output2, output3, output4 = model(pre_img_var, post_img_var)
         output = model(pre_img_var, post_img_var)
         #output, temp1, temp2 = model(pre_img_var, post_img_var)
-        #loss = BCEDiceLoss(output, target_var) + BCEDiceLoss(output2, target_var) + BCEDiceLoss(output3, target_var) + \
-        #       BCEDiceLoss(output4, target_var)
 
         #loss = MSEDiceLoss(output, target_var) + MSEDiceLoss(output2, target_var) + MSEDiceLoss(output3, target_var) + \
         #       MSEDiceLoss(output4, target_var) # BCEDiceLoss is not appropriate for multi-class change detection
-        #print(output.shape)
-        #print(target_var.shape)
         loss = MSEDiceLoss(output, target_var)#
-        #pred = torch.where(output > 0.5, torch.ones_like(output), torch.zeros_like(output)).long()#重写pred和混淆矩阵计算
         pred = F.log_softmax(output,dim=1)
-        Pred = torch.squeeze(torch.argmax(pred,dim=1))#calculate F1 Kappa base on Pred and target
+        Pred = torch.squeeze(torch.argmax(pred,dim=1))
         # torch.cuda.synchronize()
         time_taken = time.time() - start_time
 
@@ -107,23 +100,10 @@ def val(args, val_loader, model, epoch):
         if args.onGPU and torch.cuda.device_count() > 1:
             output = gather(Pred, 0, dim=0)
         # salEvalVal.addBatch(pred, target_var)
-        #print("Pred",Pred.cpu().numpy().shape)
-        #print("target",target_var.cpu().numpy().shape)
         f1 = salEvalVal.update_cm(pr=Pred.cpu().numpy(), gt=target_var.cpu().numpy())
         if iter % 5 == 0:
             print('\r[%d/%d] F1: %3f loss: %.3f time: %.3f' % (iter, total_batches, f1, loss.data.item(), time_taken),
                   end='')
-
-        # if np.mod(iter, 200) == 1:
-        #     vis_input = utils.make_numpy_grid(utils.de_norm(pre_img_var[0:8]))
-        #     vis_input2 = utils.make_numpy_grid(utils.de_norm(post_img_var[0:8]))
-        #     vis_pred = utils.make_numpy_grid(pred[0:8])
-        #     vis_gt = utils.make_numpy_grid(target_var[0:8])
-        #     vis = np.concatenate([vis_input, vis_input2, vis_pred, vis_gt], axis=0)
-        #     vis = np.clip(vis, a_min=0.0, a_max=1.0)
-        #     file_name = os.path.join(
-        #         args.vis_dir, 'val_' + str(epoch) + '_' + str(iter) + '.jpg')
-        #     plt.imsave(file_name, vis)
 
     average_epoch_loss_val = sum(epoch_loss) / len(epoch_loss)
     scores = salEvalVal.get_scores()
@@ -164,19 +144,11 @@ def train(args, train_loader, model, optimizer, epoch, max_batches, cur_iter=0, 
         #output, output2, output3, output4 = model(pre_img_var, post_img_var)
         output = model(pre_img_var, post_img_var)
         #output, temp1, temp2 = model(pre_img_var, post_img_var)
-        #loss = BCEDiceLoss(output, target_var) + BCEDiceLoss(output2, target_var) + BCEDiceLoss(output3, target_var) + \
-        #       BCEDiceLoss(output4, target_var)#BCEDiceLoss is not appropriate for multi-class change detection
-
         #loss = MSEDiceLoss(output, target_var) + MSEDiceLoss(output2, target_var) + MSEDiceLoss(output3, target_var) + \
         #       MSEDiceLoss(output4, target_var)#BCEDiceLoss is not appropriate for multi-class change detection
         loss = MSEDiceLoss(output, target_var)
-        #loss = BCEDiceLoss(output, target_var)
-        #pred = torch.where(output > 0.5, torch.ones_like(output), torch.zeros_like(output)).long()#完全重写，这里是二分类
         pred = F.log_softmax(output,dim=1)#the pred is utilized for metrics calculation
         Pred = torch.squeeze(torch.argmax(pred,dim=1))#calculate F1 Kappa base on Pred and target
-        #print("pred",pred.shape)
-        #print("Pred",Pred.shape)
-        #print("target",target.shape)
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -186,7 +158,7 @@ def train(args, train_loader, model, optimizer, epoch, max_batches, cur_iter=0, 
         res_time = (max_batches * args.max_epochs - iter - cur_iter) * time_taken / 3600
 
         if args.onGPU and torch.cuda.device_count() > 1:
-            output = gather(Pred, 0, dim=0)#gather的作用
+            output = gather(Pred, 0, dim=0)
 
         # Computing F-measure and IoU on GPU
         with torch.no_grad():
@@ -197,22 +169,6 @@ def train(args, train_loader, model, optimizer, epoch, max_batches, cur_iter=0, 
                 iter + cur_iter, max_batches * args.max_epochs, f1, lr, loss.data.item(),
                 res_time),
                   end='')
-
-        # if np.mod(iter, 200) == 1:#可以注释掉应该
-        #     print(pre_img_var[0:8].shape)
-        #     vis_input = utils.make_numpy_grid(utils.de_norm(pre_img_var[0:8]))#取前八个
-        #     vis_input2 = utils.make_numpy_grid(utils.de_norm(post_img_var[0:8]))
-        #     vis_pred = utils.make_numpy_grid(pred[0:8])
-        #     vis_gt = utils.make_numpy_grid(target_var[0:8])
-        #     print(vis_input.shape)
-        #     print(vis_input2.shape)
-        #     print(vis_pred.shape)
-        #     print(vis_gt.shape)
-        #     vis = np.concatenate([vis_input, vis_input2, vis_pred, vis_gt], axis=0)
-        #     vis = np.clip(vis, a_min=0.0, a_max=1.0)
-        #     file_name = os.path.join(
-        #         args.vis_dir, 'train_' + str(epoch) + '_' + str(iter) + '.jpg')
-        #     plt.imsave(file_name, vis)
 
     average_epoch_loss_train = sum(epoch_loss) / len(epoch_loss)
     scores = salEvalVal.get_scores()
@@ -263,8 +219,6 @@ def trainValidateSegmentation(args):
         args.file_root = './samples'
     elif args.file_root == 'SentinelCD':
         args.file_root = './Datasets/SentinelCD'
-    elif args.file_root == 'S2W':
-        args.file_root = './Datasets/S2W'
     else:
         raise TypeError('%s has not defined' % args.file_root)
 
@@ -280,7 +234,7 @@ def trainValidateSegmentation(args):
     total_params = sum([np.prod(p.size()) for p in model.parameters()])
     print('Total network parameters (excluding idr): ' + str(total_params))
 
-    mean = [0.406, 0.456, 0.485, 0.406, 0.456, 0.485]#??这些通道
+    mean = [0.406, 0.456, 0.485, 0.406, 0.456, 0.485]
     std = [0.225, 0.224, 0.229, 0.225, 0.224, 0.229]
     # mean = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
     # std = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
@@ -291,10 +245,7 @@ def trainValidateSegmentation(args):
         myTransforms.RandCrop(256,256),
         myTransforms.NormalizeSentinel(mean=mean, std=std),
         myTransforms.Scale(args.inWidth, args.inHeight),
-        #myTransforms.RandomCropResize(int(7. / 224. * args.inWidth)),#modify this transform, inWidth, inHeight: 256 这部作用相当于裁剪拉伸
         myTransforms.RandomFlip(),
-        #myTransforms.RandomExchange(),#前后时相随计交换？
-        # myTransforms.GaussianNoise(),
         myTransforms.ToTensor()
     ])
 
