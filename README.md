@@ -18,10 +18,10 @@ pillow 9.0.1 <br>
 https://pan.baidu.com/s/1P24MCokRd9Icbz8drBFARA?pwd=mtRS <br>
 Put the folder "datasets" inside the folder "Normalization".<br>
 ## Train
-```python train.py```
-The configs can be modified in the "option/base_option.py and option/train_option.py" <br>
+```python train.py```<br>
+The configs can be modified in the "options/base_options.py and options/train_options.py" <br>
 ## Test
-```python train.py --dataroot Your_Path_to_data --model testdoubleG --no_dropout --use_wandb --model_suffix _A --load_size 256 --name YourExperimentname --ngf 64 --netG ResUnet```
-
+```python train.py --dataroot Your_Path_to_data --model testdoubleG --no_dropout --use_wandb --model_suffix _A --load_size 256 --name YourExperimentname --ngf 64 --netG ResUnet```<br>
+The configs can be modified in the " options/test_options.py" <br>
 # Contact
 jianhao_miao@whu.edu.cn
