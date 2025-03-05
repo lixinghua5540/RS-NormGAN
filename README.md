@@ -27,13 +27,13 @@ The configs can be modified in the " options/test_options.py" <br>
 # Change Detection
 ## DataSet
   **file path**
-- [相关资料](#相关资料)
-  - [本文相关代码](#本文相关代码)
-- [一、概述](#一概述)
-  - [1.1 基本概念](#11-基本概念)
-  - [1.2 两种处理模型](#12-两种处理模型)
+- [Datasets](#Datasets)
+  - [Experiment](#Experiment)
+  - [train](#train)
     - [（1）微批处理](#1微批处理)
     - [（2）持续处理](#2持续处理)
+  - [test](#test)
+  - [val](#val)
 ## Train
 for Sentinel Hefei Change Detection dataset
 ```python train_SHCD.py```<br>
