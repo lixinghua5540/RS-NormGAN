@@ -100,36 +100,6 @@ def cm2F1(confusion_matrix):
     return f1
 
 def cm2score(confusion_matrix):
-    # hist = confusion_matrix
-    # tp = hist[1, 1]
-    # fn = hist[1, 0]
-    # fp = hist[0, 1]
-    # tn = hist[0, 0]
-    # # acc
-    # oa = (tp + tn) / (tp + fn + fp + tn + np.finfo(np.float32).eps)
-    # # recall
-    # recall = tp / (tp + fn + np.finfo(np.float32).eps)
-    # # precision
-    # precision = tp / (tp + fp + np.finfo(np.float32).eps)
-    # # F1 score
-    # f1 = 2 * recall * precision / (recall + precision + np.finfo(np.float32).eps)
-    # # IoU
-    # iou = tp / (tp + fp + fn + np.finfo(np.float32).eps)
-    # # pre
-    # pre = ((tp + fn) * (tp + fp) + (tn + fp) * (tn + fn)) / (tp + fp + tn + fn) ** 2
-    # # kappa
-    # kappa = (oa - pre) / (1 - pre)
-    # hist = confusion_matrix
-    # tp = hist[1, 1]
-    # fn = hist[1, 0]
-    # fp = hist[0, 1]
-    # tn = hist[0, 0]
-    # # recall
-    # recall = tp / (tp + fn + np.finfo(np.float32).eps)
-    # # precision
-    # precision = tp / (tp + fp + np.finfo(np.float32).eps)
-    # # F1 score
-    # f1 = 2 * recall * precision / (recall + precision + np.finfo(np.float32).eps)
     hist = confusion_matrix
     precision=hist.diagonal()/(np.sum(hist,axis=1)+np.finfo(np.float32).eps)
     recall=hist.diagonal()/(np.sum(hist,axis=0)+np.finfo(np.float32).eps)
