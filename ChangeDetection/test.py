@@ -1,7 +1,5 @@
 import sys
 
-from models.model import BaseNet
-
 sys.path.insert(0, '.')
 
 import torch
@@ -20,6 +18,7 @@ import numpy as np
 from argparse import ArgumentParser
 from Evaluate_operation import excel_confu_matrix, metrics
 import cv2
+from models.model import BaseNet
 from models.DMINet import DMINet
 from models.FCEF import FC_siam_diff, FC_siam_diff2
 from models.SEIFNet import SEIFNet
