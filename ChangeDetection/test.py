@@ -27,8 +27,8 @@ from models.DsferNet import MyNet
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 
-color_codes_BGR=[[0,0,0],[0,0,255],[0,255,255],[255,0,0],[128,0,128],[255,255,255]]#BGR
-#color_codes_BGR=[[0,0,0],[255,255,255]]#BGR
+color_codes_BGR=[[0,0,0],[0,0,255],[0,255,255],[255,0,0],[128,0,128],[255,255,255]]#BGR for SHCD
+#color_codes_BGR=[[0,0,0],[255,255,255]]#BGR for GESD binary change detection
 
 def cal_confu_matrix(label,predict,class_num): 
     confu_list=[]
