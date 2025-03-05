@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 import os, time
 import numpy as np
 from argparse import ArgumentParser
-from models.model import BaseNet
+from models.A2Net import A2Net
 from models.FCEF import FC_siam_diff2
 from models.DMINet import DMINet
 from models.SEIFNet import SEIFNet
@@ -209,7 +209,7 @@ def trainValidateSegmentation(args):
     torch.manual_seed(SEED)
     torch.cuda.manual_seed(SEED)
 
-    #model = BaseNet(3, 1)
+    #model = A2Net(3, 1)
     #model = DMINet(num_classes=1)
     #model = FC_siam_diff2(3, 1)
     model = SEIFNet(args, input_nc=3, output_nc=1)
