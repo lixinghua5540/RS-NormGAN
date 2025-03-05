@@ -7,7 +7,7 @@ We proposed a pseudo invariant feature (PIF) - inspired weakly supervised genera
 
 # Data Acquisition
 https://pan.baidu.com/s/1P24MCokRd9Icbz8drBFARA?pwd=mtRS <br>
-Put the folder inside the Normalization.
+Put the folder "datasets" inside the folder "Normalization".
 
 # Contact
 jianhao_miao@whu.edu.cn
