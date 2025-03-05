@@ -29,11 +29,12 @@ The configs can be modified in the " options/test_options.py" <br>
   **file path**
 - [Datasets](#Datasets)
   - [Experiment](#Experiment)
-  - [train](#train)
-    - [（1）微批处理](#1微批处理)
-    - [（2）持续处理](#2持续处理)
-  - [test](#test)
-  - [val](#val)
+    - [train](#train)
+      - [A](#A)
+      - [B](#B)
+      - [label](#label)
+    - [test](#test)
+    - [val](#val)
 ## Train
 for Sentinel Hefei Change Detection dataset
 ```python train_SHCD.py```<br>
