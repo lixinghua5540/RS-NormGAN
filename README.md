@@ -33,7 +33,7 @@ The configs can be modified in the " options/test_options.py" <br>
       - A
         - Normalization
       - B
-        - label
+      - label
     - test
     - val
 ## Train
