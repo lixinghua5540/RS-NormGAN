@@ -8,7 +8,7 @@ import torch.backends.cudnn as cudnn
 from torch.nn.parallel import gather
 import torch.optim.lr_scheduler
 
-import datasetsentinel as myDataLoader#changeable
+import datasetsentinel as myDataLoader
 import Transforms as myTransforms
 from metric_tool import ConfuseMatrixMeter
 import utils
