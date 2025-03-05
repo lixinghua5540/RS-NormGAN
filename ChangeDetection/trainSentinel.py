@@ -1,0 +1,457 @@
+import sys
+
+from models.model import BaseNet
+
+sys.path.insert(0, '.')
+
+import torch
+import torch.nn.functional as F
+import torch.backends.cudnn as cudnn
+from torch.nn.parallel import gather
+import torch.optim.lr_scheduler
+
+import datasetsentinel as myDataLoader
+import Transforms as myTransforms
+from metric_tool import ConfuseMatrixMeter
+import utils
+import matplotlib.pyplot as plt
+
+import os, time
+import numpy as np
+from argparse import ArgumentParser
+from models.DMINet import DMINet
+from models.FCEF import FC_siam_diff
+from models.SEIFNet import SEIFNet
+from models.DsferNet import MyNet
+
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+
+def BCEDiceLoss(inputs, targets):
+    # print(inputs.shape, targets.shape)
+    bce = F.binary_cross_entropy(inputs, targets)
+    inter = (inputs * targets).sum()
+    eps = 1e-5
+    dice = (2 * inter + eps) / (inputs.sum() + targets.sum() + eps)
+    # print(bce.item(), inter.item(), inputs.sum().item(), dice.item())
+    return bce + 1 - dice
+
+
+def BCE(inputs, targets):
+    # print(inputs.shape, targets.shape)
+    bce = F.binary_cross_entropy(inputs, targets)
+    return bce
+
+def MSEDiceLoss(inputs, targets):#把valbatch改成2也行，重写squeeze也行
+    #mse = F.binary_cross_entropy(inputs, targets)#yong softmax_cross_entropy是不是更好，logsoftmax和softmax有什么不一样
+    #print("input",inputs.squeeze(dim=1).shape)
+    #print("tar",targets.squeeze(dim=1).shape)
+    mse = F.cross_entropy(inputs, targets.squeeze().to(torch.long))#the target should be batches of number and has one less dimension than inputs
+    #inter = (inputs * targets).sum()#dice can not calculate in this way because we use several classes
+    eps = 1e-5
+    #dice = (2 * inter + eps) / (inputs.sum() + targets.sum() + eps)
+    # print(bce.item(), inter.item(), inputs.sum().item(), dice.item())
+    #return mse + 1 - dice
+    return mse
+
+def MSE(inputs, targets):
+    return 0
+
+@torch.no_grad()
+def val(args, val_loader, model, epoch):
+    model.eval()
+
+    salEvalVal = ConfuseMatrixMeter(n_class=6)#不要用这些，用原来的体系
+
+    epoch_loss = []
+
+    total_batches = len(val_loader)
+    print(len(val_loader))
+    for iter, batched_inputs in enumerate(val_loader):
+
+        img, target,_ = batched_inputs
+        pre_img = img[:, 0:3]
+        post_img = img[:, 3:6]
+
+        start_time = time.time()
+
+        if args.onGPU == True:
+            pre_img = pre_img.cuda()
+            target = target.cuda()
+            post_img = post_img.cuda()
+
+        pre_img_var = torch.autograd.Variable(pre_img).float()
+        post_img_var = torch.autograd.Variable(post_img).float()
+        target_var = torch.autograd.Variable(target).float()#so why should we use the var data
+
+        # run the mdoel
+        #output, output2, output3, output4 = model(pre_img_var, post_img_var)
+        output = model(pre_img_var, post_img_var)
+        #output, temp1, temp2 = model(pre_img_var, post_img_var)
+        #loss = BCEDiceLoss(output, target_var) + BCEDiceLoss(output2, target_var) + BCEDiceLoss(output3, target_var) + \
+        #       BCEDiceLoss(output4, target_var)
+
+        #loss = MSEDiceLoss(output, target_var) + MSEDiceLoss(output2, target_var) + MSEDiceLoss(output3, target_var) + \
+        #       MSEDiceLoss(output4, target_var) # BCEDiceLoss is not appropriate for multi-class change detection
+        #print(output.shape)
+        #print(target_var.shape)
+        loss = MSEDiceLoss(output, target_var)#
+        #pred = torch.where(output > 0.5, torch.ones_like(output), torch.zeros_like(output)).long()#重写pred和混淆矩阵计算
+        pred = F.log_softmax(output,dim=1)
+        Pred = torch.squeeze(torch.argmax(pred,dim=1))#calculate F1 Kappa base on Pred and target
+        # torch.cuda.synchronize()
+        time_taken = time.time() - start_time
+
+        epoch_loss.append(loss.data.item())
+
+        # compute the confusion matrix
+        if args.onGPU and torch.cuda.device_count() > 1:
+            output = gather(Pred, 0, dim=0)
+        # salEvalVal.addBatch(pred, target_var)
+        #print("Pred",Pred.cpu().numpy().shape)
+        #print("target",target_var.cpu().numpy().shape)
+        f1 = salEvalVal.update_cm(pr=Pred.cpu().numpy(), gt=target_var.cpu().numpy())
+        if iter % 5 == 0:
+            print('\r[%d/%d] F1: %3f loss: %.3f time: %.3f' % (iter, total_batches, f1, loss.data.item(), time_taken),
+                  end='')
+
+        # if np.mod(iter, 200) == 1:
+        #     vis_input = utils.make_numpy_grid(utils.de_norm(pre_img_var[0:8]))
+        #     vis_input2 = utils.make_numpy_grid(utils.de_norm(post_img_var[0:8]))
+        #     vis_pred = utils.make_numpy_grid(pred[0:8])
+        #     vis_gt = utils.make_numpy_grid(target_var[0:8])
+        #     vis = np.concatenate([vis_input, vis_input2, vis_pred, vis_gt], axis=0)
+        #     vis = np.clip(vis, a_min=0.0, a_max=1.0)
+        #     file_name = os.path.join(
+        #         args.vis_dir, 'val_' + str(epoch) + '_' + str(iter) + '.jpg')
+        #     plt.imsave(file_name, vis)
+
+    average_epoch_loss_val = sum(epoch_loss) / len(epoch_loss)
+    scores = salEvalVal.get_scores()
+
+    return average_epoch_loss_val, scores
+
+
+def train(args, train_loader, model, optimizer, epoch, max_batches, cur_iter=0, lr_factor=1.):
+    # switch to train mode
+    model.train()
+
+    salEvalVal = ConfuseMatrixMeter(n_class=6)
+    epoch_loss = []
+
+    total_batches = len(train_loader)
+
+    for iter, batched_inputs in enumerate(train_loader):
+
+        img, target,_ = batched_inputs
+        pre_img = img[:, 0:3]
+        post_img = img[:, 3:6]
+
+        start_time = time.time()
+
+        # adjust the learning rate
+        lr = adjust_learning_rate(args, optimizer, epoch, iter + cur_iter, max_batches, lr_factor=lr_factor)
+
+        if args.onGPU == True:
+            pre_img = pre_img.cuda()
+            target = target.cuda()
+            post_img = post_img.cuda()
+
+        pre_img_var = torch.autograd.Variable(pre_img).float()
+        post_img_var = torch.autograd.Variable(post_img).float()
+        target_var = torch.autograd.Variable(target).float()
+
+        # run the model
+        #output, output2, output3, output4 = model(pre_img_var, post_img_var)
+        output = model(pre_img_var, post_img_var)
+        #output, temp1, temp2 = model(pre_img_var, post_img_var)
+        #loss = BCEDiceLoss(output, target_var) + BCEDiceLoss(output2, target_var) + BCEDiceLoss(output3, target_var) + \
+        #       BCEDiceLoss(output4, target_var)#BCEDiceLoss is not appropriate for multi-class change detection
+
+        #loss = MSEDiceLoss(output, target_var) + MSEDiceLoss(output2, target_var) + MSEDiceLoss(output3, target_var) + \
+        #       MSEDiceLoss(output4, target_var)#BCEDiceLoss is not appropriate for multi-class change detection
+        loss = MSEDiceLoss(output, target_var)
+        #loss = BCEDiceLoss(output, target_var)
+        #pred = torch.where(output > 0.5, torch.ones_like(output), torch.zeros_like(output)).long()#完全重写，这里是二分类
+        pred = F.log_softmax(output,dim=1)#the pred is utilized for metrics calculation
+        Pred = torch.squeeze(torch.argmax(pred,dim=1))#calculate F1 Kappa base on Pred and target
+        #print("pred",pred.shape)
+        #print("Pred",Pred.shape)
+        #print("target",target.shape)
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        epoch_loss.append(loss.data.item())
+        time_taken = time.time() - start_time
+        res_time = (max_batches * args.max_epochs - iter - cur_iter) * time_taken / 3600
+
+        if args.onGPU and torch.cuda.device_count() > 1:
+            output = gather(Pred, 0, dim=0)#gather的作用
+
+        # Computing F-measure and IoU on GPU
+        with torch.no_grad():
+            f1 = salEvalVal.update_cm(pr=Pred.cpu().numpy(), gt=target_var.cpu().numpy())
+
+        if iter % 5 == 0:
+            print('\riteration: [%d/%d] f1: %.3f lr: %.7f loss: %.3f time:%.3f h' % (
+                iter + cur_iter, max_batches * args.max_epochs, f1, lr, loss.data.item(),
+                res_time),
+                  end='')
+
+        # if np.mod(iter, 200) == 1:#可以注释掉应该
+        #     print(pre_img_var[0:8].shape)
+        #     vis_input = utils.make_numpy_grid(utils.de_norm(pre_img_var[0:8]))#取前八个
+        #     vis_input2 = utils.make_numpy_grid(utils.de_norm(post_img_var[0:8]))
+        #     vis_pred = utils.make_numpy_grid(pred[0:8])
+        #     vis_gt = utils.make_numpy_grid(target_var[0:8])
+        #     print(vis_input.shape)
+        #     print(vis_input2.shape)
+        #     print(vis_pred.shape)
+        #     print(vis_gt.shape)
+        #     vis = np.concatenate([vis_input, vis_input2, vis_pred, vis_gt], axis=0)
+        #     vis = np.clip(vis, a_min=0.0, a_max=1.0)
+        #     file_name = os.path.join(
+        #         args.vis_dir, 'train_' + str(epoch) + '_' + str(iter) + '.jpg')
+        #     plt.imsave(file_name, vis)
+
+    average_epoch_loss_train = sum(epoch_loss) / len(epoch_loss)
+    scores = salEvalVal.get_scores()
+
+    return average_epoch_loss_train, scores, lr
+
+
+def adjust_learning_rate(args, optimizer, epoch, iter, max_batches, lr_factor=1):
+    if args.lr_mode == 'step':
+        lr = args.lr * (0.1 ** (epoch // args.step_loss))
+    elif args.lr_mode == 'poly':
+        cur_iter = iter
+        max_iter = max_batches * args.max_epochs
+        lr = args.lr * (1 - cur_iter * 1.0 / max_iter) ** 0.9
+    else:
+        raise ValueError('Unknown lr mode {}'.format(args.lr_mode))
+    if epoch == 0 and iter < 200:
+        lr = args.lr * 0.9 * (iter + 1) / 200 + 0.1 * args.lr  # warm_up
+    lr *= lr_factor
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr
+    return lr
+
+
+def trainValidateSegmentation(args):
+    torch.backends.cudnn.benchmark = True
+    SEED = 2333
+    torch.manual_seed(SEED)
+    torch.cuda.manual_seed(SEED)
+
+    #model = BaseNet(3, 6)
+    #model = DMINet(num_classes=6)
+    model = FC_siam_diff(3,6)
+    #model = MyNet(n_classes=6, beta=512, dim = 512, numhead = 1)#default setting
+    model_name="net1_31"
+    args.savedir = args.savedir + '_' +model_name+ args.file_root + '_iter_' + str(args.max_steps) + '_lr_' + str(args.lr) + '/'
+    args.vis_dir = args.savedir + '/Vis/'
+
+    if args.file_root == 'LEVIR':
+        args.file_root = './Datasets/LEVIR-CD_256_patches'
+    elif args.file_root == 'BCDD':
+        args.file_root = './Datasets/BCDD'
+    elif args.file_root == 'SYSU':
+        args.file_root = './Datasets/SYSU'
+    elif args.file_root == 'CDD':
+        args.file_root = './Datasets/CDD'
+    elif args.file_root == 'quick_start':
+        args.file_root = './samples'
+    elif args.file_root == 'SentinelCD':
+        args.file_root = './Datasets/SentinelCD'
+    elif args.file_root == 'S2W':
+        args.file_root = './Datasets/S2W'
+    else:
+        raise TypeError('%s has not defined' % args.file_root)
+
+    if not os.path.exists(args.savedir):
+        os.makedirs(args.savedir)
+
+    if not os.path.exists(args.vis_dir):
+        os.makedirs(args.vis_dir)
+
+    if args.onGPU:
+        model = model.cuda()
+
+    total_params = sum([np.prod(p.size()) for p in model.parameters()])
+    print('Total network parameters (excluding idr): ' + str(total_params))
+
+    mean = [0.406, 0.456, 0.485, 0.406, 0.456, 0.485]#??这些通道
+    std = [0.225, 0.224, 0.229, 0.225, 0.224, 0.229]
+    # mean = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+    # std = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+
+    # compose the data with transforms
+    trainDataset_main = myTransforms.Compose([
+        #myTransforms.Normalize(mean=mean, std=std),
+        myTransforms.RandCrop(256,256),
+        myTransforms.NormalizeSentinel(mean=mean, std=std),
+        myTransforms.Scale(args.inWidth, args.inHeight),
+        #myTransforms.RandomCropResize(int(7. / 224. * args.inWidth)),#modify this transform, inWidth, inHeight: 256 这部作用相当于裁剪拉伸
+        myTransforms.RandomFlip(),
+        #myTransforms.RandomExchange(),#前后时相随计交换？
+        # myTransforms.GaussianNoise(),
+        myTransforms.ToTensor()
+    ])
+
+    valDataset = myTransforms.Compose([
+        #myTransforms.Normalize(mean=mean, std=std),
+        myTransforms.NormalizeSentinel(mean=mean, std=std),
+        #myTransforms.Scale(args.inWidth, args.inHeight),
+        myTransforms.ToTensor()
+    ])
+
+    train_data = myDataLoader.DatasetSentinel("train", "net1_3", file_root=args.file_root, transform=trainDataset_main)
+
+    trainLoader = torch.utils.data.DataLoader(
+        train_data,
+        batch_size=args.batch_size, shuffle=True,
+        num_workers=args.num_workers, pin_memory=False, drop_last=False# think twice of drop_last
+    )
+
+    val_data = myDataLoader.DatasetSentinel("val","net1_3", file_root=args.file_root, transform=valDataset)
+    valLoader = torch.utils.data.DataLoader(
+        val_data, shuffle=False,
+        batch_size=args.batch_size, num_workers=args.num_workers, pin_memory=False)
+
+    #test_data = myDataLoader.DatasetSentinel("test", file_root=args.file_root, transform=valDataset)
+    #testLoader = torch.utils.data.DataLoader(
+    #    test_data, shuffle=False,
+    #    batch_size=args.batch_size, num_workers=args.num_workers, pin_memory=False)
+
+    # whether use multi-scale training
+
+    max_batches = len(trainLoader)
+
+    print('For each epoch, we have {} batches'.format(max_batches))
+
+    if args.onGPU:
+        cudnn.benchmark = True
+
+    args.max_epochs = int(np.ceil(args.max_steps / max_batches))
+    start_epoch = 0
+    cur_iter = 0
+    max_F1_val = 0
+    max_kappa_val = 0
+    args.resume=None
+    if args.resume is not None:
+        args.resume = args.savedir + '/checkpoint.pth.tar'
+        if os.path.isfile(args.resume):
+            print("=> loading checkpoint '{}'".format(args.resume))
+            checkpoint = torch.load(args.resume)
+            start_epoch = checkpoint['epoch']
+            cur_iter = start_epoch * len(trainLoader)
+            # args.lr = checkpoint['lr']
+            model.load_state_dict(checkpoint['state_dict'])
+            print("=> loaded checkpoint '{}' (epoch {})"
+                  .format(args.resume, checkpoint['epoch']))
+        else:
+            print("=> no checkpoint found at '{}'".format(args.resume))
+
+    logFileLoc = args.savedir + args.logFile
+    if os.path.isfile(logFileLoc):
+        logger = open(logFileLoc, 'a')
+    else:
+        logger = open(logFileLoc, 'w')
+        logger.write("Parameters: %s" % (str(total_params)))
+        logger.write(
+            "\n%s\t%s\t%s\t%s\t%s\t%s" % ('Epoch', 'Kappa (val)', 'IoU (val)', 'F1 (val)', 'R (val)', 'P (val)'))
+    logger.flush()
+
+    optimizer = torch.optim.Adam(model.parameters(), args.lr, (0.9, 0.99), eps=1e-08, weight_decay=1e-4)
+
+    for epoch in range(start_epoch, args.max_epochs):
+
+        lossTr, score_tr, lr = \
+            train(args, trainLoader, model, optimizer, epoch, max_batches, cur_iter)
+        cur_iter += len(trainLoader)
+
+        torch.cuda.empty_cache()
+
+        # evaluate on validation set
+        if epoch == 0:#?0就没有验证过程
+            continue
+
+        lossVal, score_val = val(args, valLoader, model, epoch)
+        torch.cuda.empty_cache()
+        # logger.write("\n%d\t\t%.4f\t\t%.4f\t\t%.4f\t\t%.4f\t\t%.4f" % (epoch, score_val['Kappa'], score_val['IoU'],
+        #                                                                score_val['F1'], score_val['recall'],
+        #                                                                score_val['precision']))
+        logger.write("\n%d\t\t%.4f\t\t\t%.4f\t\t%.4f\t\t%.4f" % (epoch, score_val['Kappa'],
+                                                                       score_val['F1'], score_val['recall'],
+                                                                       score_val['precision']))
+        logger.flush()
+
+        torch.save({
+            'epoch': epoch + 1,
+            'arch': str(model),
+            'state_dict': model.state_dict(),
+            'optimizer': optimizer.state_dict(),
+            'lossTr': lossTr,
+            'lossVal': lossVal,
+            'F_Tr': score_tr['F1'],
+            'F_val': score_val['F1'],
+            'lr': lr
+        }, args.savedir + 'checkpoint.pth.tar')
+
+        # save the model also
+        model_file_name = args.savedir + 'best_model.pth'
+        model_file_name_kappa = args.savedir + 'best_model_kappa.pth'
+        if epoch % 1 == 0 and max_F1_val <= score_val['F1'] and epoch>200:#choose the best model by F1
+            max_F1_val = score_val['F1']
+            torch.save(model.state_dict(), model_file_name)
+        if epoch % 1 == 0 and max_kappa_val <= score_val['Kappa'] and epoch>200:#choose the best model by F1
+            max_kappa_val = score_val['Kappa']
+            torch.save(model.state_dict(), model_file_name_kappa)
+        if (epoch+1) % 500 == 0 and epoch>200:#save the model at specific epoch
+            ep_model_file_name=args.savedir + str(epoch+1)+'.pth'
+            torch.save(model.state_dict(), ep_model_file_name)
+
+        print("Epoch " + str(epoch) + ': Details')
+        print("\nEpoch No. %d:\tTrain Loss = %.4f\tVal Loss = %.4f\t F1(tr) = %.4f\t F1(val) = %.4f" \
+              % (epoch, lossTr, lossVal, score_tr['F1'], score_val['F1']))
+        torch.cuda.empty_cache()
+    #state_dict = torch.load(model_file_name)#why load state dict in this section?
+    #model.load_state_dict(state_dict)
+
+    #loss_test, score_test = val(args, testLoader, model, 0)
+    #print("\nTest :\t Kappa (te) = %.4f\t IoU (te) = %.4f\t F1 (te) = %.4f\t R (te) = %.4f\t P (te) = %.4f" \
+    #      % (score_test['Kappa'], score_test['IoU'], score_test['F1'], score_test['recall'], score_test['precision']))
+    #logger.write("\n%s\t\t%.4f\t\t%.4f\t\t%.4f\t\t%.4f\t\t%.4f" % ('Test', score_test['Kappa'], score_test['IoU'],
+    #                                                               score_test['F1'], score_test['recall'],
+    #                                                               score_test['precision']))
+    logger.flush()
+    logger.close()
+
+
+if __name__ == '__main__':
+    parser = ArgumentParser()
+    parser.add_argument('--file_root', default="SentinelCD", help='Data directory | LEVIR | BCDD | SYSU| SentinelCD|S2W ')
+    parser.add_argument('--inWidth', type=int, default=256, help='Width of RGB image')
+    parser.add_argument('--inHeight', type=int, default=256, help='Height of RGB image')
+    parser.add_argument('--max_steps', type=int, default=20000, help='Max. number of iterations')
+    parser.add_argument('--num_workers', type=int, default=4, help='No. of parallel threads')
+    parser.add_argument('--batch_size', type=int, default=16, help='Batch size')#32
+    parser.add_argument('--step_loss', type=int, default=100, help='Decrease learning rate after how many epochs')
+    parser.add_argument('--lr', type=float, default=5e-4, help='Initial learning rate')
+    parser.add_argument('--lr_mode', default='poly', help='Learning rate policy, step or poly')
+    parser.add_argument('--savedir', default='./results', help='Directory to save the results')
+    #parser.add_argument('--resume', default=True, help='Use this checkpoint to continue training | '
+    #                                                   './results_ep100/checkpoint.pth.tar')
+    parser.add_argument('--resume', default=True, help='Use this checkpoint to continue training | '
+                                                       './results_ep100/checkpoint.pth.tar')
+    parser.add_argument('--logFile', default='trainValLog.txt',
+                        help='File that stores the training and validation logs')
+    parser.add_argument('--onGPU', default=True, type=lambda x: (str(x).lower() == 'true'),
+                        help='Run on CPU or GPU. If TRUE, then GPU.')
+    parser.add_argument('--weight', default='', type=str, help='pretrained weight, can be a non-strict copy')
+    parser.add_argument('--ms', type=int, default=0, help='apply multi-scale training, default False')
+
+    args = parser.parse_args()
+    print('Called with args:')
+    print(args)
+    trainValidateSegmentation(args)
