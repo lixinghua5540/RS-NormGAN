@@ -18,6 +18,7 @@ pillow 9.0.1 <br>
 https://pan.baidu.com/s/1P24MCokRd9Icbz8drBFARA?pwd=mtRS <br>
 Put the folder "datasets" inside the folder "Normalization".<br>
 ## Train
+<hl>python train.py<hl>
 
 ## Test
 
