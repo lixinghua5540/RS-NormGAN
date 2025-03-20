@@ -27,7 +27,7 @@ class Weightfusion(nn.Module):
     
     def dilate(self,bin_img, ksize=3):
         pad = (ksize - 1) // 2
-        bin_img = F.pad(bin_img, pad=[pad, pad, pad, pad], mode='reflect')#pad 有四个参数，分别代表甚么
+        bin_img = F.pad(bin_img, pad=[pad, pad, pad, pad], mode='reflect')
         out = F.max_pool2d(bin_img, kernel_size=ksize, stride=1, padding=0)
         return out
         
@@ -57,7 +57,7 @@ class Weightfusion(nn.Module):
         maskd=V_mask
         Area_resulte.append(V_mask)#former is bigger
         Area_resultd.append(V_mask)#latter is bigger
-        for i in range(self.radius):#一步一步的扩张会耗时间感觉，提出一个高效算法一步扩张权重,哪些不要梯度也可以直接取消梯度
+        for i in range(self.radius):
             maske=self.erode(maske)#inplace？
             maskd=self.dilate(maskd)
             Area_resulte.append(maske)
